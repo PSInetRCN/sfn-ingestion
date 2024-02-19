@@ -208,7 +208,7 @@ treatments <- blank_psinet_template[[4]][1:2,]
 
 if(any(!is.na(sfn_wp$pl_treatment))) {
   
-  treatments$`Treatment ID` <- c(treatments$`Treatment ID`[1], paste0("Treatment_", unique(sfn_wp$pl_treatment)))
+  treatments$`Treatment ID` <- c(treatments$`Treatment ID`[1], unique(sfn_wp$pl_treatment))
   treatments$`Treatment description` <- c(treatments$`Treatment description`[1], unique(sfn_wp$pl_treatment))
   
 } else {
