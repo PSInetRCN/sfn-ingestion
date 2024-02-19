@@ -5,7 +5,7 @@ library(openxlsx)
 
 #### Specify site name
 
-sfn_site <- "USA_MOR_SF" # Change this to match each site
+sfn_site <- "AUS_CAN_ST1_EUC" # Change this to match each site
 
 #### Establish connections to files ####
 
@@ -204,11 +204,11 @@ writeData(filled_psinet_template, 4, data_avail)
 
 #### Sheet 4 Treatments ####
 
-treatments <- blank_psinet_template[[4]]
+treatments <- blank_psinet_template[[4]][1:2,]
 
 if(any(!is.na(sfn_wp$pl_treatment))) {
   
-  treatments$`Treatment ID` <- c(treatments$`Treatment description`[1], paste0("Treatment_", 1:length(unique(sfn_wp$pl_treatment))))
+  treatments$`Treatment ID` <- c(treatments$`Treatment ID`[1], paste0("Treatment_", unique(sfn_wp$pl_treatment)))
   treatments$`Treatment description` <- c(treatments$`Treatment description`[1], unique(sfn_wp$pl_treatment))
   
 } else {
@@ -295,8 +295,7 @@ if(all(is.na(sfn_wp$pl_code))) {
     distinct() |>
     left_join(sfn_plant_md, by = "pl_code")
   
-  matched_plants <- plants[2, -1] |>
-    mutate(Individual_ID = matching_individuals$pl_code,
+  matched_plants <- data.frame(Individual_ID = matching_individuals$pl_code,
            Number_of_individuals = NA,
            Plot_ID = "Whole study",
            Plot_Treatment_ID = NA,
@@ -308,6 +307,7 @@ if(all(is.na(sfn_wp$pl_code))) {
            `Average DBH (cm)` = matching_individuals$pl_dbh,
            `Leaf area index (m2/m2)` = matching_individuals$pl_leaf_area,
            Remarks = matching_individuals$pl_remarks)
+  
   writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
   
 }
@@ -417,7 +417,16 @@ if(any(data_desc$`Is it available?`[8:15])) {
            across(1:2, as.character))
   
   possible_met_dat_cnames <- sfn_env_md[FALSE,] |>
-    select(4:11) |>
+    select(c(
+      "env_precip",
+      "env_rh",
+      "env_vpd",
+      "env_ta",
+      "env_ppfd_in",
+      "env_sw_in",
+      "env_netrad",
+      "env_ws"
+    )) |>
     rename_with( ~ gsub("env_", "", .x), everything()) |>
     mutate(across(everything(), as.numeric))
   
