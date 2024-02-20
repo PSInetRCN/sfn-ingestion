@@ -194,7 +194,7 @@ data_avail <- blank_psinet_template[[3]]
 data_avail$Availability[7] <- TRUE
 data_avail$Publication[7] <- TRUE
 data_avail$Network[7] <- "SAPFLUXNET"
-data_avail$`Network or database ID`[7] <- site_name_sfn
+data_avail$`Network or database ID`[7] <- sfn_site
 data_avail$Remarks[7] <- "Imported from SAPFLUXNET"
 
 
