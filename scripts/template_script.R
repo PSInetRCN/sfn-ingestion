@@ -33,7 +33,7 @@ sfn_wp <- readxl::read_xlsx(here::here("data", "raw_data", paste0(sfn_site, ".xl
 
 sfn_wp <- sfn_wp |>
   mutate(date = format(timestamp, "%Y%m%d"),
-         time = format(timestamp, "%H-%M-%S"))
+         time = format(timestamp, "%H:%M:%S"))
 
 sfn_env <- sfn_env |>
   mutate(cleaned_timestamp = sub("T", " ", TIMESTAMP)) |>
@@ -207,7 +207,7 @@ writeData(filled_psinet_template, 4, data_avail)
 treatments <- blank_psinet_template[[4]][1:2,]
 
 if(any(!is.na(sfn_wp$pl_treatment))) {
-  
+  treatments$`Level of treatment`[2] <- "Whole study"
   treatments$`Treatment ID` <- c(treatments$`Treatment ID`[1], unique(sfn_wp$pl_treatment))
   treatments$`Treatment description` <- c(treatments$`Treatment description`[1], unique(sfn_wp$pl_treatment))
   
@@ -228,6 +228,7 @@ writeData(filled_psinet_template, 5, treatments)
 plots <- blank_psinet_template[[5]]
 
 plots$`Plot ID`[2] <- "Whole study"
+plots$`Treatment ID`[2] <- treatments$`Treatment ID`[2]
 plots$`Vegetation type`[2] <- sfn_site_md$si_igbp[1]
 plots$`Growth condition`[2] <- sfn_stand_md$st_growth_condition[1]
 plots$Aspect[2] <- sfn_stand_md$st_aspect[1]
@@ -262,7 +263,7 @@ if(all(is.na(sfn_wp$pl_code))) {
     matched_plants <- data.frame(Individual_ID = sfn_individuals$pl_code,
                                  Number_of_individuals = NA,
                                  Plot_ID = "Whole study",
-                                 Plot_Treatment_ID = NA,
+                                 Plot_Treatment_ID = plots$`Treatment ID`[2],
                                  Individual_Treatment_ID = sfn_individuals$pl_treatment,
                                  Genus = sfn_individuals$genus,
                                  Specific_epithet = sfn_individuals$species,
@@ -298,7 +299,7 @@ if(all(is.na(sfn_wp$pl_code))) {
   matched_plants <- data.frame(Individual_ID = matching_individuals$pl_code,
            Number_of_individuals = NA,
            Plot_ID = "Whole study",
-           Plot_Treatment_ID = NA,
+           Plot_Treatment_ID = plots$`Treatment ID`[2],
            Individual_Treatment_ID = matching_individuals$pl_treatment,
            Genus = unlist(strsplit(matching_individuals$pl_species, split = " "))[[1]],
            Specific_epithet = unlist(strsplit(matching_individuals$pl_species, split = " "))[[2]],
