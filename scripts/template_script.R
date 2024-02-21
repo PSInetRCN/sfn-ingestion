@@ -5,7 +5,7 @@ library(openxlsx)
 
 #### Specify site name
 
-sfn_site <- "AUS_CAN_ST1_EUC" # Change this to match each site
+sfn_site <- "USA_MOR_SF" # Change this to match each site
 
 #### Establish connections to files ####
 
@@ -253,7 +253,7 @@ if(all(is.na(sfn_wp$pl_code))) {
     
     # create this to use later
     sfn_wp <-  sfn_wp |>
-      mutate(pl_code = paste0(site_name_sfn, "_", gsub(" ", "_", pl_species))) 
+      mutate(pl_code = paste0(sfn_site, "_", gsub(" ", "_", pl_species))) 
     
     sfn_individuals <- sfn_wp |>
       select(pl_code, pl_treatment, pl_species, pl_height, pl_dbh, remarks) |>
@@ -333,7 +333,7 @@ if(any("chamber-bagged" %in% sfn_wp$method, "chamber-unbagged" %in% sfn_wp$metho
            `Ψ`,
            `Ψ SE`,
            `Ψ N`) |>
-    mutate(Plot_ID = NA, .after = pl_code) |> # Or "Whole study"
+    mutate(Plot_ID = "Whole study", .after = pl_code) |> # Or "Whole study"
     rename(Individual_ID = pl_code,
            Date = date,
            Time = time,
@@ -367,7 +367,7 @@ if("psychometer" %in% sfn_wp$method) {
            `Ψ`,
            `Ψ SE`,
            `Ψ N`) |>
-    mutate(Plot_ID = NA, .after = pl_code) |> # Or "Whole study"
+    mutate(Plot_ID = "Whole study", .after = pl_code) |> # Or "Whole study"
     rename(Individual_ID = pl_code,
            Date = date,
            Time = time,
