@@ -5,7 +5,7 @@ library(openxlsx)
 
 #### Specify site name
 
-sfn_site <- "USA_MOR_SF" # Change this to match each site
+sfn_site <- "USA_DUK_HAR" # Change this to match each site
 
 #### Establish connections to files ####
 
@@ -282,6 +282,28 @@ if(all(is.na(sfn_wp$pl_code))) {
     # In the instance of there being individuals tracked, but no pl_codes specified,
     # I don't know if there's a rule, a priori, to use to detect unique individuals.
     # Perhaps fill in this section based on a dataset that we see?
+    sfn_wp <-  sfn_wp |>
+      mutate(pl_code = pl_name) 
+    
+    sfn_individuals <- sfn_wp |>
+      select(pl_code, pl_treatment, pl_species, pl_height, pl_dbh, remarks) |>
+      distinct() |>
+      separate(col = pl_species, into = c("genus", "species"), sep = " ")
+    
+    matched_plants <- data.frame(Individual_ID = sfn_individuals$pl_code,
+                                 Number_of_individuals = NA,
+                                 Plot_ID = "Whole study",
+                                 Plot_Treatment_ID = plots$`Treatment ID`[2],
+                                 Individual_Treatment_ID = sfn_individuals$pl_treatment,
+                                 Genus = sfn_individuals$genus,
+                                 Specific_epithet = sfn_individuals$species,
+                                 `Plant social status` = NA,
+                                 `Average height (m)` = sfn_individuals$pl_height,
+                                 `Average DBH (cm)` = sfn_individuals$pl_dbh,
+                                 `Leaf area index (m2/m2)` = NA,
+                                 Remarks = sfn_individuals$remarks)
+    
+    writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
     
   }
   
