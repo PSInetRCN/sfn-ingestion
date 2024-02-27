@@ -5,7 +5,7 @@ library(openxlsx)
 
 #### Specify site name
 
-sfn_site <- "USA_DUK_HAR" # Change this to match each site
+sfn_site <- "CHE_PFY_IRR" # Change this to match each site
 
 #### Establish connections to files ####
 
@@ -28,6 +28,10 @@ sfn_sapflow <- read.csv(here::here("data", "raw_data", "md", paste0(sfn_site, "_
 sfn_env <-  read.csv(here::here("data", "raw_data", "md", paste0(sfn_site, "_env_data.csv"))) 
 
 sfn_wp <- readxl::read_xlsx(here::here("data", "raw_data", paste0(sfn_site, ".xlsx")), sheet = 3, na = c("NA")) 
+
+sfn_wp <- sfn_wp |>
+  separate(col = pl_species, into = c("genus", "species"), sep = " ") |>
+  mutate(pl_name = ifelse(is.na(pl_name), paste0(genus, "_", species, row_number()), pl_name)) 
 
 ##### Parse timestamp on sfn_wp, sfn_env
 
@@ -208,13 +212,15 @@ writeData(filled_psinet_template, 4, data_avail)
 treatments <- blank_psinet_template[[4]][1:2,]
 
 if(any(!is.na(sfn_wp$pl_treatment))) {
-  treatments$`Level of treatment`[2] <- "Whole study"
-  treatments$`Treatment ID` <- c(treatments$`Treatment ID`[1], unique(sfn_wp$pl_treatment))
-  treatments$`Treatment description` <- c(treatments$`Treatment description`[1], unique(sfn_wp$pl_treatment))
+  treatments <- data.frame(
+    `Level of treatment` = c(treatments$`Treatment ID`[1], rep("Individual", times = length(unique(sfn_wp$pl_treatment)))),
+    `Treatment ID` = c(treatments$`Treatment ID`[1], unique(sfn_wp$pl_treatment)),
+    `Treatment description` = c(treatments$`Treatment description`[1], unique(sfn_wp$pl_treatment))
+    )
   
 } else {
   
-  treatments$`Level of treatment`[2] <- "Whole study"
+  treatments$`Level of treatment`[2] <- "SFN stand"
   treatments$`Treatment ID`[2] <- "No treatment"
   
 }
@@ -228,8 +234,8 @@ writeData(filled_psinet_template, 5, treatments)
 
 plots <- blank_psinet_template[[5]]
 
-plots$`Plot ID`[2] <- "Whole study"
-plots$`Treatment ID`[2] <- treatments$`Treatment ID`[2]
+plots$`Plot ID`[2] <- sfn_site
+plots$`Treatment ID`[2] <- ifelse(length(unique(na.omit(sfn_wp$pl_treatment))) == 1, unique(sfn_wp$pl_treatment), "No treatment")
 plots$`Vegetation type`[2] <- sfn_site_md$si_igbp[1]
 plots$`Growth condition`[2] <- sfn_stand_md$st_growth_condition[1]
 plots$Aspect[2] <- sfn_stand_md$st_aspect[1]
@@ -246,95 +252,24 @@ writeData(filled_psinet_template, 6, plots)
 
 plants <- blank_psinet_template[[6]]
 
-if(all(is.na(sfn_wp$pl_code))) {
-  
-  # For records grouped by species
-  
-  if(all(sfn_wp$aggregation_level == "species level")) {
-    
-    # create this to use later
-    sfn_wp <-  sfn_wp |>
-      mutate(pl_code = paste0(sfn_site, "_", gsub(" ", "_", pl_species))) 
-    
-    sfn_individuals <- sfn_wp |>
-      select(pl_code, pl_treatment, pl_species, pl_height, pl_dbh, remarks) |>
-      distinct() |>
-      separate(col = pl_species, into = c("genus", "species"), sep = " ")
-    
-    matched_plants <- data.frame(Individual_ID = sfn_individuals$pl_code,
-                                 Number_of_individuals = NA,
-                                 Plot_ID = "Whole study",
-                                 Plot_Treatment_ID = plots$`Treatment ID`[2],
-                                 Individual_Treatment_ID = sfn_individuals$pl_treatment,
-                                 Genus = sfn_individuals$genus,
-                                 Specific_epithet = sfn_individuals$species,
-                                 `Plant social status` = NA,
-                                 `Average height (m)` = sfn_individuals$pl_height,
-                                 `Average DBH (cm)` = sfn_individuals$pl_dbh,
-                                 `Leaf area index (m2/m2)` = NA,
-                                 Remarks = sfn_individuals$remarks)
-    
-    writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
-    
-    
-  } else {
-    # This is a case not covered by the example I have, so it will need re-visiting.
-    # In the instance of there being individuals tracked, but no pl_codes specified,
-    # I don't know if there's a rule, a priori, to use to detect unique individuals.
-    # Perhaps fill in this section based on a dataset that we see?
-    sfn_wp <-  sfn_wp |>
-      mutate(pl_code = pl_name) 
-    
-    sfn_individuals <- sfn_wp |>
-      select(pl_code, pl_treatment, pl_species, pl_height, pl_dbh, remarks) |>
-      distinct() |>
-      separate(col = pl_species, into = c("genus", "species"), sep = " ")
-    
-    matched_plants <- data.frame(Individual_ID = sfn_individuals$pl_code,
-                                 Number_of_individuals = NA,
-                                 Plot_ID = "Whole study",
-                                 Plot_Treatment_ID = plots$`Treatment ID`[2],
-                                 Individual_Treatment_ID = sfn_individuals$pl_treatment,
-                                 Genus = sfn_individuals$genus,
-                                 Specific_epithet = sfn_individuals$species,
-                                 `Plant social status` = NA,
-                                 `Average height (m)` = sfn_individuals$pl_height,
-                                 `Average DBH (cm)` = sfn_individuals$pl_dbh,
-                                 `Leaf area index (m2/m2)` = NA,
-                                 Remarks = sfn_individuals$remarks)
-    
-    writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
-    
-  }
-  
-} else {
-  
-  # For instances when pl_code in sfn_wp links to pl_code in sfn_plant_md
-  # This is a case not covered by the example I have, so it will probably need re-visiting.
-  # Question: do we preferentially pull values from the WP or from the MD files? 
-  # This code pulls from the MD file.
-  
-  matching_individuals <- sfn_wp |>
-    select(pl_code) |>
-    distinct() |>
-    left_join(sfn_plant_md, by = "pl_code")
-  
-  matched_plants <- data.frame(Individual_ID = matching_individuals$pl_code,
-           Number_of_individuals = NA,
-           Plot_ID = "Whole study",
-           Plot_Treatment_ID = plots$`Treatment ID`[2],
-           Individual_Treatment_ID = matching_individuals$pl_treatment,
-           Genus = unlist(strsplit(matching_individuals$pl_species, split = " "))[[1]],
-           Specific_epithet = unlist(strsplit(matching_individuals$pl_species, split = " "))[[2]],
-           `Plant social status` = matching_individuals$pl_social,
-           `Average height (m)` = matching_individuals$pl_height,
-           `Average DBH (cm)` = matching_individuals$pl_dbh,
-           `Leaf area index (m2/m2)` = matching_individuals$pl_leaf_area,
-           Remarks = matching_individuals$pl_remarks)
-  
-  writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
-  
-}
+sfn_individuals <- sfn_wp |>
+  select(pl_name, pl_treatment, genus, species, pl_height, pl_dbh, remarks) |>
+  distinct() 
+
+matched_plants <- data.frame(Individual_ID = sfn_individuals$pl_name,
+                             Number_of_individuals = ifelse(all(sfn_wp$aggregation_level == "tree level"), 1, NA),
+                             Plot_ID = sfn_site,
+                             Plot_Treatment_ID = plots$`Treatment ID`[2],
+                             Individual_Treatment_ID = ifelse(is.na(sfn_individuals$pl_treatment), "No treatment", sfn_individuals$pl_treatment),
+                             Genus = sfn_individuals$genus,
+                             Specific_epithet = sfn_individuals$species,
+                             `Plant social status` = NA,
+                             `Average height (m)` = sfn_individuals$pl_height,
+                             `Average DBH (cm)` = sfn_individuals$pl_dbh,
+                             `Leaf area index (m2/m2)` = NA,
+                             Remarks = sfn_individuals$remarks)
+
+writeData(filled_psinet_template, 7, matched_plants, startCol = 2, startRow = 3, colNames = F)
 
 #### Sheets 7 and 8 Plant water potential ####
 
@@ -345,10 +280,10 @@ wp_dat <- blank_psinet_template[[7]]
 if(any("chamber-bagged" %in% sfn_wp$method, "chamber-unbagged" %in% sfn_wp$method)) {
   
   pc_dat <- sfn_wp |>
-    filter(method != "psychometer")
+    filter(method != "psychometer") 
   
   pc_wp_dat <- pc_dat |>
-    select(pl_code,
+    select(pl_name,
            date,
            time,
            organ,
@@ -356,8 +291,8 @@ if(any("chamber-bagged" %in% sfn_wp$method, "chamber-unbagged" %in% sfn_wp$metho
            `Ψ`,
            `Ψ SE`,
            `Ψ N`) |>
-    mutate(Plot_ID = "Whole study", .after = pl_code) |> # Or "Whole study"
-    rename(Individual_ID = pl_code,
+    mutate(Plot_ID = sfn_site, .before = date) |> # Or "Whole study"
+    rename(Individual_ID = pl_name,
            Date = date,
            Time = time,
            Organ = organ,
@@ -379,10 +314,10 @@ if(any("chamber-bagged" %in% sfn_wp$method, "chamber-unbagged" %in% sfn_wp$metho
 if("psychometer" %in% sfn_wp$method) {
   
   psyc_dat <- sfn_wp |>
-    filter(method == "psychometer")
+    filter(method == "psychometer") 
   
   psyc_wp_dat <- psyc_dat |>
-    select(pl_code,
+    select(pl_name,
            date,
            time,
            organ,
@@ -390,8 +325,8 @@ if("psychometer" %in% sfn_wp$method) {
            `Ψ`,
            `Ψ SE`,
            `Ψ N`) |>
-    mutate(Plot_ID = "Whole study", .after = pl_code) |> # Or "Whole study"
-    rename(Individual_ID = pl_code,
+    mutate(Plot_ID = sfn_site, .after = pl_code) |> # Or "Whole study"
+    rename(Individual_ID = pl_name,
            Date = date,
            Time = time,
            Organ = organ,
@@ -410,12 +345,12 @@ if("psychometer" %in% sfn_wp$method) {
 #### Sheet 9 Soil moisture data ####
 
 if(any(data_desc$`Is it available?`[4:5])) {
-
-sm_dat <- blank_psinet_template[[9]][FALSE, -1] |>
-  mutate(SWC_mean_shallow = as.numeric(SWC_mean_shallow),
-         SWC_mean_deep = as.numeric(SWC_mean_deep))
-
-
+  
+  sm_dat <- blank_psinet_template[[9]][FALSE, -1] |>
+    mutate(SWC_mean_shallow = as.numeric(SWC_mean_shallow),
+           SWC_mean_deep = as.numeric(SWC_mean_deep))
+  
+  
   swc_col_table <- data.frame(swc_shallow = numeric(),
                               swc_deep = numeric())
   
@@ -427,8 +362,8 @@ sm_dat <- blank_psinet_template[[9]][FALSE, -1] |>
            SWC_mean_deep = swc_deep) |>
     bind_rows(sm_dat) |>
     select(colnames(sm_dat)) |>
-    mutate(Plot_ID = "Whole study")
-
+    mutate(Plot_ID = sfn_site)
+  
   writeData(filled_psinet_template, 10, swc_dat, startCol = 2, startRow = 3, colNames = F)
   
 }
@@ -475,4 +410,14 @@ if(any(data_desc$`Is it available?`[8:15])) {
   
 }
 
+## Sheet 11 SFN codes ####
+
+sfn_codes <- sfn_wp |>
+  select(pl_name, pl_code, measured_sfn) |>
+  distinct()
+
+writeData(filled_psinet_template, 13, sfn_codes, startCol = 1, startRow = 1, colNames = T)
+
+
 saveWorkbook(filled_psinet_template, site_path, overwrite = T)
+
