@@ -5,7 +5,7 @@ library(openxlsx)
 
 #### Specify site name
 
-sfn_site <- "CHE_PFY_IRR" # Change this to match each site
+sfn_site <- "SEN_SOU_POS" # Change this to match each site
 
 #### Establish connections to files ####
 
@@ -29,9 +29,13 @@ sfn_env <-  read.csv(here::here("data", "raw_data", "md", paste0(sfn_site, "_env
 
 sfn_wp <- readxl::read_xlsx(here::here("data", "raw_data", paste0(sfn_site, ".xlsx")), sheet = 3, na = c("NA")) 
 
-sfn_wp <- sfn_wp |>
+sfn_individuals <- sfn_wp |>
   separate(col = pl_species, into = c("genus", "species"), sep = " ") |>
+  select(pl_name, genus, species, pl_treatment, pl_status) |>
+  distinct() |>
   mutate(pl_name = ifelse(is.na(pl_name), paste0(genus, "_", species, row_number()), pl_name)) 
+
+sfn_wp <- sfn_wp |> select(-pl_name) |> left_join(sfn_individuals)
 
 ##### Parse timestamp on sfn_wp, sfn_env
 
